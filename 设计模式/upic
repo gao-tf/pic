@@ -1,0 +1,252 @@
+---
+title: 精讲设计模式【责任链模式】
+date: 2022-06-06 17:50:55.33
+updated: 2022-06-07 10:41:03.758
+url: https://www.sky12580.cn/archives/jing-jiang-she-ji-mo-shi--ze-ren-lian-mo-shi-
+categories: 
+- 设计模式
+tags: 
+- 设计模式
+- 23种设计模式
+- 责任链模式
+---
+
+源码下载：https://logaaaaa.oss-cn-beijing.aliyuncs.com/com.gtf-1654569634442.zip
+# 什么是责任链模式
+
+客户端发出一个请求，链上的对象都有机会来处理这一请求，而客户端不需要知道谁是具体的处理对象。这样就实现了请求者和接受者之间的解耦，并且在客户端可以实现动态的组合职责链。使编程更有灵活性。
+
+定义：使多个对象都有机会处理请求，从而避免了请求的发送者和接受者之间的耦合关系。将这些对象连成一条链，并沿着这条链传递该请求，直到有对象处理它为止。其过程实际上是一个递归调用。
+
+要点主要是：
+1. 　1、有多个对象共同对一个任务进行处理。
+1.   2、这些对象使用链式存储结构，形成一个链，每个对象知道自己的下一个对象。
+1.   3、一个对象对任务进行处理，可以添加一些操作后将对象传递个下一个任务。也可以在此对象上结束任务的处理，并结束任务。
+1.   4、客户端负责组装链式结构，但是客户端不需要关心最终是谁来处理了任务。
+1.   多个对象指的是什么意思？
+责任链模式类结构图
+![责任脸设计模式](https://logaaaaa.oss-cn-beijing.aliyuncs.com/%E8%B4%A3%E4%BB%BB%E8%84%B8%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%BC%8F.png)
+　1.抽象处理者(Handler)角色：定义出一个处理请求的接口。如果需要，接口可以定义 出一个方法以设定和返回对下家的引用。这个角色通常由一个Java抽象类或者Java接口实现。上图中Handler类的聚合关系给出了具体子类对下家的引用，抽象方法handleRequest()规范了子类处理请求的操作。
+　2.具体处理者(ConcreteHandler)角色：具体处理者接到请求后，可以选择将请求处理掉，或者将请求传给下家。由于具体处理者持有对下家的引用，因此，如果需要，具体处理者可以访问下家
+责任链模式优缺点
+- 优点：
+职责链模式的最主要功能就是：动态组合，请求者和接受者解耦。
+请求者和接受者松散耦合：请求者不需要知道接受者，也不需要知道如何处理。每个职责对象只负责自己的职责范围，其他的交给后继者。各个组件间完全解耦。
+动态组合职责：职责链模式会把功能分散到单独的职责对象中，然后在使用时动态的组合形成链，从而可以灵活的分配职责对象，也可以灵活的添加改变对象职责。
+
+- 缺点：
+产生很多细粒度的对象：因为功能处理都分散到了单独的职责对象中，每个对象功能单一，要把整个流程处理完，需要很多的职责对象，会产生大量的细粒度职责对象。
+不一定能处理：每个职责对象都只负责自己的部分，这样就可以出现某个请求，即使把整个链走完，都没有职责对象处理它。这就需要提供默认处理，并且注意构造链的有效性。
+
+## 责任链模式应用场景
+1.多条件流程判断 权限控制
+2.ERP系统 流程审批 总经理、人事经理、项目经理
+3.Java过滤器的底层实现Filter 
+比如：在Java过滤器中客户端发送请求到服务器端，过滤会经过参数过滤、session过滤、表单过滤、隐藏过滤、检测请求头过滤
+![1654508625420](https://logaaaaa.oss-cn-beijing.aliyuncs.com/1654508625420.jpg)
+### 网关权限控制责任链模式
+
+在网关作为微服务程序的入口，拦截客户端所有的请求实现权限控制 ，比如先判断Api接口限流、黑名单、用户会话、参数过滤。
+Api接口限流→黑名单拦截→用户会话→参数过滤
+
+责任链设计模式如何保证顺序的问题？
+使用链表数据结构、
+
+### 责任链设计模式如何实现整个链执行
+使用双向链表的数据结构。
+只需要获取到第一个handler 所有整个链都会执行。
+CurrentLimitHanler=第一关
+BlacklistHandler =第二关
+ConversationHandler=第三关
+#### 责任链模式➕工厂模式实现
+##### 首先定义公共的抽象方法
+```java
+/**
+ * 抽象类
+ */
+public abstract class GateawayHandler {
+    //能够继承protected
+    protected GateawayHandler nextGateawayHandler;
+    //能够继承protected
+    protected void nextService(){
+        if (nextGateawayHandler!=null) {
+            nextGateawayHandler.service();
+        }
+    }
+
+    /**
+     * 定义公共方法行为
+     */
+    public  abstract void service();
+
+    /**
+     * 设置下一个GateawayHandler
+     */
+    public void setNextGateawayHandler(GateawayHandler nextGateawayHandler){
+        this.nextGateawayHandler = nextGateawayHandler;
+    }
+
+}
+```
+##### 设置各个关卡
+```java
+package com.gtf.dyg;
+
+import com.gtf.abstractHanler.GateawayHandler;
+import com.gtf.deg.BlacklistHandler;
+
+public  class  CurrentLimitHanler extends GateawayHandler
+{
+
+    @Override
+    public void service() {
+        System.out.println("第一关");
+        nextService();
+    }
+}
+
+@Component
+public class BlacklistHandler extends GateawayHandler {
+
+
+    @Override
+    public void service() {
+        System.out.println("第二关....");
+        nextService();
+    }
+}
+
+@Component
+public class ConversationHandler extends GateawayHandler {
+    @Override
+    public void service() {
+        System.out.println("第三关....");
+    }
+}
+```
+##### 创建工厂
+```java
+@Component
+public class FactoryHanlder {
+    public CurrentLimitHanler getCurrentLimitHanlder() {
+        //第一关
+        CurrentLimitHanler currentLimitHanler = new CurrentLimitHanler();
+        //第二关
+        BlacklistHandler blacklistHandler = new BlacklistHandler();
+        currentLimitHanler.setNextGateawayHandler(blacklistHandler);
+        //第三关
+        ConversationHandler conversationHandler = new ConversationHandler();
+        blacklistHandler.setNextGateawayHandler(conversationHandler);
+        return currentLimitHanler;
+    }
+}
+```
+##### 测试控制层
+```java
+    @GetMapping("/hanlder")
+    public void hanlder() throws ClassNotFoundException, InstantiationException, IllegalAccessException {
+        CurrentLimitHanler currentLimitHanler =factory.getCurrentLimitHanlder();
+       currentLimitHanler.service();
+    }
+```
+#### 责任链模式➕数据库实现
+```sql
+CREATE TABLE `gateway_handler` (
+  `ID` int(11) NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `handler_name` varchar(32) DEFAULT NULL COMMENT 'handler名称',
+  `handler_id` varchar(32) DEFAULT NULL COMMENT 'handler主键id',
+  `prev_handler_id` varchar(32) DEFAULT NULL,
+  `next_handler_id` varchar(32) DEFAULT NULL COMMENT '下一个handler',
+  PRIMARY KEY (`ID`)
+) ENGINE=InnoDB AUTO_INCREMENT=19 DEFAULT CHARSET=utf8 COMMENT='权限表';
+
+-- ----------------------------
+-- Records of gateway_handler
+-- ----------------------------
+INSERT INTO `gateway_handler` VALUES ('16', 'Api接口限流', 'currentLimitHandler', null, 'blacklistHandler');
+INSERT INTO `gateway_handler` VALUES ('17', '黑名单拦截', 'blacklistHandler', 'currentLimitHandler', 'conversationHandler');
+INSERT INTO `gateway_handler` VALUES ('18', '会话验证', 'conversationHandler', 'blacklistHandler', null);
+```
+##### mapper接口
+```java
+
+public interface GatewayHandlerMapper {
+
+   /**
+    * 获取第一个GatewayHandler
+    * 
+    * @return
+    */
+   @Select("SELECT  handler_name AS handlerName,handler_id AS handlerid ,prev_handler_id AS prevhandlerid ,next_handler_id AS nexthandlerid  FROM gateway_handler WHERE  prev_handler_id is null;;")
+   public GatewayHandlerEntity getFirstGatewayHandler();
+
+   @Select("SELECT  handler_name AS handlerName,handler_id AS handlerid ,prev_handler_id AS prevhandlerid ,next_handler_id AS nexthandlerid   FROM gateway_handler WHERE  handler_id=#{handlerId}")
+   public GatewayHandlerEntity getByHandler(String handlerId);
+
+}
+
+@Data
+public class GatewayHandlerEntity implements Serializable, Cloneable {
+   /** 主键ID */
+   private Integer id;
+   /** handler名称 */
+   private String handlerName;
+   /** handler主键id */
+   private String handlerId;
+   /** 下一个handler */
+   private String nextHandlerId;
+
+
+}
+```
+#### 工厂/service控制
+```java
+@Component
+public class FactoryHanlder {
+    @Autowired
+    private GatewayHandlerMapper gatewayHandlerMap;
+    private GateawayHandler firstGatewayHandler;
+    public GateawayHandler getDbFirstGatewayHandler() {
+
+        // 1.查询数据库第一个handler配置
+        GatewayHandlerEntity firstGatewayHandlerEntity = gatewayHandlerMap.getFirstGatewayHandler();
+        if (firstGatewayHandlerEntity == null) {
+            return null;
+        }
+        String firstBeanHandlerId = firstGatewayHandlerEntity.getHandlerId();
+        if (StringUtils.isEmpty(firstBeanHandlerId)) {
+            return null;
+        }
+        // 2.从SpringBoot容器获取第一个handler对象
+        GateawayHandler firstGatewayHandler = SpringUtils.getBean(firstBeanHandlerId, GateawayHandler.class);
+        if (firstGatewayHandler == null) {
+            return null;
+        }
+        // 3. 获取下一个handlerBeanId
+        String nextBeanHandlerId = firstGatewayHandlerEntity.getNextHandlerId();
+        // 定义临时循环遍历指针
+        GateawayHandler tempNextGatewayHandler = firstGatewayHandler;
+        while (!StringUtils.isEmpty(nextBeanHandlerId)) {
+            // 4.从SpringBoot容器获取下一个handler对象
+            GateawayHandler nextGatewayHandler = SpringUtils.getBean(nextBeanHandlerId, GateawayHandler.class);
+            if (nextGatewayHandler == null) {
+                break;
+            }
+            // 5.从数据库查询该hanlder信息
+            GatewayHandlerEntity nextGatewayHandlerEntity = gatewayHandlerMap.getByHandler(nextBeanHandlerId);
+            if (nextGatewayHandlerEntity == null) {
+                break;
+            }
+            // 6.设置下一个white循环遍历hanlderid
+            nextBeanHandlerId = nextGatewayHandlerEntity.getNextHandlerId();
+            tempNextGatewayHandler.setNextGateawayHandler(nextGatewayHandler);
+            tempNextGatewayHandler = nextGatewayHandler;
+        }
+        this.firstGatewayHandler = firstGatewayHandler;
+        return firstGatewayHandler;
+    }
+
+}
+```
+# 过滤器底层就是使用的责任链
+放行请求里面很多handler。
